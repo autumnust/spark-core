@@ -23,6 +23,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage._
 
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 /**
  * Spark class responsible for passing RDDs partition contents to the BlockManager and making
  * sure a node doesn't load two copies of an RDD at once.
@@ -38,6 +39,14 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
       partition: Partition,
       context: TaskContext,
       storageLevel: StorageLevel): Iterator[T] = {
+
+    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+    extra_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+    extra_log.info("[Coarsed-getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
 
     val key = RDDBlockId(rdd.id, partition.index)
     logDebug(s"Looking for partition $key")
@@ -66,7 +75,13 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
         // Otherwise, we have to load the partition ourselves
         try {
           logInfo(s"Partition $key not found, computing it")
+
+          extra_log.info("[Fined-getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
+            + basicLogComponent)
           val computedValues = rdd.computeOrReadCheckpoint(partition, context)
+          extra_log.info("[Fined-getOrCompute]EndAt:" + System.currentTimeMillis().toString + ","
+            + basicLogComponent)
+
 
           // If the task is running locally, do not persist the result
           if (context.isRunningLocally) {
@@ -79,14 +94,18 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
           val metrics = context.taskMetrics
           val lastUpdatedBlocks = metrics.updatedBlocks.getOrElse(Seq[(BlockId, BlockStatus)]())
           metrics.updatedBlocks = Some(lastUpdatedBlocks ++ updatedBlocks.toSeq)
-          new InterruptibleIterator(context, cachedValues)
-
+          val funcRet = new InterruptibleIterator(context, cachedValues)
+          extra_log.info("[Coarsed-getOrCompute]EndAt:"
+            + System.currentTimeMillis().toString + ","
+            + basicLogComponent)
+          funcRet
         } finally {
           loading.synchronized {
             loading.remove(key)
             loading.notifyAll()
           }
         }
+
     }
   }
 

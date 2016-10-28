@@ -87,18 +87,7 @@ private[spark] abstract class Task[T](
       kill(interruptThread = false)
     }
     try {
-      val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
-      extra_log.setLevel(Level.INFO)
-      val basicLogComponent = System.currentTimeMillis().toString + "," +
-        "TaskAttempt ID:" + taskAttemptId.toString() +
-        ",Partition Id:" + partitionId.toString +
-        ",Stage Id:" + stageId.toString
-
-      extra_log.info("[CoarseTask]StartAt:" + basicLogComponent)
-      val funcRet = (runTask(context), context.collectAccumulators())
-      extra_log.info("[CoarseTask]EndAt:" + basicLogComponent)
-
-      funcRet
+      (runTask(context), context.collectAccumulators())
     } finally {
       context.markTaskCompleted()
       try {

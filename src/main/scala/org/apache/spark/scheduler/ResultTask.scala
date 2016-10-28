@@ -67,14 +67,15 @@ private[spark] class ResultTask[T, U](
     metrics = Some(context.taskMetrics)
     val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
     extra_log.setLevel(Level.INFO)
-    val basicLogComponent = System.currentTimeMillis().toString + "," +
-      "TaskAttempt ID:" + context.taskAttemptId().toString() +
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
       ",Partition Id:" + context.partitionId().toString +
       ",Stage Id:" + context.stageId().toString
 
-    extra_log.info("[ResultTask]StartAt:" + basicLogComponent)
+    extra_log.info("[ResultTask]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
     val funcRet = func(context, rdd.iterator(partition, context))
-    extra_log.info("[ResultTask]EndAt:" + basicLogComponent )
+    extra_log.info("[ResultTask]EndAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
 
     funcRet
   }
