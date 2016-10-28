@@ -42,6 +42,7 @@ import org.apache.spark.util.{BoundedPriorityQueue, Utils}
 import org.apache.spark.util.collection.OpenHashMap
 import org.apache.spark.util.random.{BernoulliSampler, PoissonSampler, BernoulliCellSampler,
   SamplingUtils}
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 
 /**
  * A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable,
@@ -264,10 +265,26 @@ abstract class RDD[T: ClassTag](
    * subclasses of RDD.
    */
   final def iterator(split: Partition, context: TaskContext): Iterator[T] = {
+    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+    extra_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+
     if (storageLevel != StorageLevel.NONE) {
-      SparkEnv.get.cacheManager.getOrCompute(this, split, context, storageLevel)
+      extra_log.info("[iterator.getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
+        + basicLogComponent)
+      val fucret = SparkEnv.get.cacheManager.getOrCompute(this, split, context, storageLevel)
+      extra_log.info("[iterator.getOrCompute]EndAt:" + System.currentTimeMillis().toString + ","
+        + basicLogComponent)
+      fucret
     } else {
-      computeOrReadCheckpoint(split, context)
+      extra_log.info("[iterator.else]StartAt:" + System.currentTimeMillis().toString + ","
+        + basicLogComponent)
+      val funret = computeOrReadCheckpoint(split, context)
+      extra_log.info("[iterator.else]EndAt:" + System.currentTimeMillis().toString + ","
+        + basicLogComponent)
+      funret
     }
   }
 
@@ -300,10 +317,28 @@ abstract class RDD[T: ClassTag](
    */
   private[spark] def computeOrReadCheckpoint(split: Partition, context: TaskContext): Iterator[T] =
   {
+//    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+//    extra_log.setLevel(Level.INFO)
+//    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+//      ",Partition Id:" + context.partitionId().toString +
+//      ",Stage Id:" + context.stageId().toString
+
+//    extra_log.info("[iterator.computeOrReadCheckpoint]StartAt:"
+//      + System.currentTimeMillis().toString + ","
+//      + basicLogComponent)
+
     if (isCheckpointedAndMaterialized) {
-      firstParent[T].iterator(split, context)
+      val funcret = firstParent[T].iterator(split, context)
+//      extra_log.info("[iterator.computeOrReadCheckpoint]EndAt:"
+//        + System.currentTimeMillis().toString + ","
+//        + basicLogComponent)
+      funcret
     } else {
-      compute(split, context)
+//      extra_log.info("[iterator.computeOrReadCheckpoint]EndAt:"
+//        + System.currentTimeMillis().toString + ","
+//        + basicLogComponent)
+      val funcret = compute(split, context)
+      funcret
     }
   }
 
