@@ -267,9 +267,10 @@ abstract class RDD[T: ClassTag](
   final def iterator(split: Partition, context: TaskContext): Iterator[T] = {
     val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
     extra_log.setLevel(Level.INFO)
-    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
-      ",Partition Id:" + context.partitionId().toString +
+    val basicLogComponent = "RDD ID:" + id + ",TaskAttempt ID:" +
+      context.taskAttemptId().toString() + ",Partition Id:" + context.partitionId().toString +
       ",Stage Id:" + context.stageId().toString
+
 
     if (storageLevel != StorageLevel.NONE) {
       extra_log.info("[iterator.getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
