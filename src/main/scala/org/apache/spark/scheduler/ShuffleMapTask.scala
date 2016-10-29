@@ -26,6 +26,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.ShuffleWriter
 
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
+
 /**
  * A ShuffleMapTask divides the elements of an RDD into multiple buckets (based on a partitioner
  * specified in the ShuffleDependency).
@@ -58,12 +60,20 @@ private[spark] class ShuffleMapTask(
   }
 
   override def runTask(context: TaskContext): MapStatus = {
+    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+    extra_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+
     // Deserialize the RDD using the broadcast variable.
     val deserializeStartTime = System.currentTimeMillis()
     val ser = SparkEnv.get.closureSerializer.newInstance()
     val (rdd, dep) = ser.deserialize[(RDD[_], ShuffleDependency[_, _, _])](
       ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
     _executorDeserializeTime = System.currentTimeMillis() - deserializeStartTime
+    extra_log.info("[ShuffleMapTask]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
 
     metrics = Some(context.taskMetrics)
     var writer: ShuffleWriter[Any, Any] = null
@@ -71,7 +81,12 @@ private[spark] class ShuffleMapTask(
       val manager = SparkEnv.get.shuffleManager
       writer = manager.getWriter[Any, Any](dep.shuffleHandle, partitionId, context)
       writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
-      writer.stop(success = true).get
+      val funcRet = writer.stop(success = true).get
+
+      // Assume that there's no error/task failure happen in the experiment.
+      extra_log.info("[ShuffleMapTask]EndAt:" + System.currentTimeMillis().toString + ","
+        + basicLogComponent )
+      funcRet
     } catch {
       case e: Exception =>
         try {
@@ -82,6 +97,7 @@ private[spark] class ShuffleMapTask(
           case e: Exception =>
             log.debug("Could not stop writer", e)
         }
+
         throw e
     }
   }

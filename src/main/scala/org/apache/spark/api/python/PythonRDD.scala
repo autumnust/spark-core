@@ -38,6 +38,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.{SerializableConfiguration, Utils}
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 
 
 private[spark] class PythonRDD(
@@ -64,10 +65,26 @@ private[spark] class PythonRDD(
   val asJavaRDD: JavaRDD[Array[Byte]] = JavaRDD.fromRDD(this)
 
   override def compute(split: Partition, context: TaskContext): Iterator[Array[Byte]] = {
+    val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
+    serialize_log.setLevel(Level.INFO)
+    val basicLogComponent = "Parent RDD ID:" + parent.id + ",Name:" + parent.name +
+      "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+    serialize_log.info("[CreationPYRE]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
+
     val runner = new PythonRunner(
       command, envVars, pythonIncludes, pythonExec, pythonVer, broadcastVars, accumulator,
       bufferSize, reuse_worker)
-    runner.compute(firstParent.iterator(split, context), split.index, context)
+    serialize_log.info("[CreationPYRE]EndAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
+
+    val funcRet = runner.compute(firstParent.iterator(split, context),
+      split.index, context, basicLogComponent)
+    serialize_log.info("[RunnerCompute]EndAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
+    funcRet
   }
 }
 
@@ -90,7 +107,11 @@ private[spark] class PythonRunner(
   def compute(
       inputIterator: Iterator[_],
       partitionIndex: Int,
-      context: TaskContext): Iterator[Array[Byte]] = {
+      context: TaskContext, loggingScheme: String): Iterator[Array[Byte]] = {
+
+    val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
+    serialize_log.setLevel(Level.INFO)
+
     val startTime = System.currentTimeMillis
     val env = SparkEnv.get
     val localdir = env.blockManager.diskBlockManager.localDirs.map(f => f.getPath()).mkString(",")
@@ -117,6 +138,8 @@ private[spark] class PythonRunner(
       }
     }
 
+    serialize_log.info("[RunnerCompute]StartAt:" + System.currentTimeMillis().toString + ","
+      + loggingScheme)
     writerThread.start()
     new MonitorThread(env, worker, context).start()
 
@@ -338,11 +361,23 @@ private class PythonException(msg: String, cause: Exception) extends RuntimeExce
 private class PairwiseRDD(prev: RDD[Array[Byte]]) extends RDD[(Long, Array[Byte])](prev) {
   override def getPartitions: Array[Partition] = prev.partitions
   override val partitioner: Option[Partitioner] = prev.partitioner
-  override def compute(split: Partition, context: TaskContext): Iterator[(Long, Array[Byte])] =
-    prev.iterator(split, context).grouped(2).map {
+  override def compute(split: Partition, context: TaskContext): Iterator[(Long, Array[Byte])] = {
+
+    val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
+    serialize_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+    serialize_log.info("[PairWiseCompute]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
+    val funcRet = prev.iterator(split, context).grouped(2).map {
       case Seq(a, b) => (Utils.deserializeLongValue(a), b)
       case x => throw new SparkException("PairwiseRDD: unexpected value: " + x)
     }
+    serialize_log.info("[PairWiseCompute]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
+    funcRet
+  }
   val asJavaPairRDD : JavaPairRDD[Long, Array[Byte]] = JavaPairRDD.fromRDD(this)
 }
 
