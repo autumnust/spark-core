@@ -141,7 +141,7 @@ abstract class RDD[T: ClassTag](
   val id: Int = sc.newRddId()
 
   /** A friendly name for this RDD */
-  @transient var name: String = null
+  var name: String = null
 
   /** Assign a name to this RDD */
   def setName(_name: String): this.type = {
@@ -267,7 +267,7 @@ abstract class RDD[T: ClassTag](
   final def iterator(split: Partition, context: TaskContext): Iterator[T] = {
     val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
     extra_log.setLevel(Level.INFO)
-    val basicLogComponent = "RDD ID:" + id + ",Name:" + name + ",TaskAttempt ID:" +
+    val basicLogComponent = "RDD ID:" + id + ",Name:" + this.name + ",TaskAttempt ID:" +
       context.taskAttemptId().toString() + ",Partition Id:" + context.partitionId().toString +
       ",Stage Id:" + context.stageId().toString
 

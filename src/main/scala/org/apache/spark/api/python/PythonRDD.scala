@@ -53,6 +53,8 @@ private[spark] class PythonRDD(
     accumulator: Accumulator[JList[Array[Byte]]])
   extends RDD[Array[Byte]](parent) {
 
+  name = "PythonRDD"
+
   val bufferSize = conf.getInt("spark.buffer.size", 65536)
   val reuse_worker = conf.getBoolean("spark.python.worker.reuse", true)
 
@@ -68,7 +70,7 @@ private[spark] class PythonRDD(
     val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
     serialize_log.setLevel(Level.INFO)
     val basicLogComponent = "Parent RDD ID:" + parent.id + ",Name:" + parent.name +
-      "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",TaskAttempt ID:" + context.taskAttemptId().toString() +
       ",Partition Id:" + context.partitionId().toString +
       ",Stage Id:" + context.stageId().toString
     serialize_log.info("[CreationPYRE]StartAt:" + System.currentTimeMillis().toString + ","
@@ -80,6 +82,10 @@ private[spark] class PythonRDD(
     serialize_log.info("[CreationPYRE]EndAt:" + System.currentTimeMillis().toString + ","
       + basicLogComponent)
 
+
+
+    serialize_log.info("[RunnerCompute]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
     val funcRet = runner.compute(firstParent.iterator(split, context),
       split.index, context, basicLogComponent)
     serialize_log.info("[RunnerCompute]EndAt:" + System.currentTimeMillis().toString + ","
@@ -124,7 +130,8 @@ private[spark] class PythonRunner(
     @volatile var released = false
 
     // Start a thread to feed the process input from our parent's iterator
-    val writerThread = new WriterThread(env, worker, inputIterator, partitionIndex, context)
+    val writerThread = new WriterThread(env, worker, inputIterator,
+      partitionIndex, context, loggingScheme)
 
     context.addTaskCompletionListener { context =>
       writerThread.shutdownOnTaskCompletion()
@@ -138,7 +145,7 @@ private[spark] class PythonRunner(
       }
     }
 
-    serialize_log.info("[RunnerCompute]StartAt:" + System.currentTimeMillis().toString + ","
+    serialize_log.info("[writerThread]StartAt:" + System.currentTimeMillis().toString + ","
       + loggingScheme)
     writerThread.start()
     new MonitorThread(env, worker, context).start()
@@ -243,9 +250,12 @@ private[spark] class PythonRunner(
       worker: Socket,
       inputIterator: Iterator[_],
       partitionIndex: Int,
-      context: TaskContext)
+      context: TaskContext,
+      loggingScheme: String)
     extends Thread(s"stdout writer for $pythonExec") {
 
+    val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
+    serialize_log.setLevel(Level.INFO)
     @volatile private var _exception: Exception = null
 
     setDaemon(true)
@@ -255,6 +265,8 @@ private[spark] class PythonRunner(
 
     /** Terminates the writer thread, ignoring any exceptions that may occur due to cleanup. */
     def shutdownOnTaskCompletion() {
+      serialize_log.info("[writerThread]EndAt:" + System.currentTimeMillis().toString + ","
+        + loggingScheme)
       assert(context.isCompleted)
       this.interrupt()
     }
@@ -359,6 +371,9 @@ private class PythonException(msg: String, cause: Exception) extends RuntimeExce
  * This is used by PySpark's shuffle operations.
  */
 private class PairwiseRDD(prev: RDD[Array[Byte]]) extends RDD[(Long, Array[Byte])](prev) {
+
+  name = "PairwiseRDD"
+
   override def getPartitions: Array[Partition] = prev.partitions
   override val partitioner: Option[Partitioner] = prev.partitioner
   override def compute(split: Partition, context: TaskContext): Iterator[(Long, Array[Byte])] = {

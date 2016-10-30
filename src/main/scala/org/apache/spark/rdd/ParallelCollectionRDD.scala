@@ -90,6 +90,8 @@ private[spark] class ParallelCollectionRDD[T: ClassTag](
     numSlices: Int,
     locationPrefs: Map[Int, Seq[String]])
     extends RDD[T](sc, Nil) {
+
+  name = "ParallelCollectionRDD"
   // TODO: Right now, each split sends along its full data, even if later down the RDD chain it gets
   // cached. It might be worthwhile to write the data to a file in the DFS and read it in the split
   // instead.

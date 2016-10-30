@@ -44,6 +44,7 @@ private[spark] class UnionPartition[T: ClassTag](
     @transient private val parentRddPartitionIndex: Int)
   extends Partition {
 
+
   // parentRddIndex is helping find the parent RDD.
   // parentRddPartitionIndex is helping finding the partition within the targeted parent RDD.
   var parentPartition: Partition = rdd.partitions(parentRddPartitionIndex)
@@ -65,6 +66,8 @@ class UnionRDD[T: ClassTag](
     sc: SparkContext,
     var rdds: Seq[RDD[T]])
   extends RDD[T](sc, Nil) {  // Nil since we implement getDependencies
+
+  name = "UnionRDD"
 
   override def getPartitions: Array[Partition] = {
     val array = new Array[Partition](rdds.map(_.partitions.length).sum)

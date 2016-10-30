@@ -254,11 +254,6 @@ private[spark] class Executor(
 
           // MARK:Logging: This is the src of the task time in monitorning result.
           // TODO: Analyze the components of this.
-          val my_log = org.apache.log4j.LogManager.getLogger("myLogger")
-          my_log.setLevel(Level.INFO)
-          my_log.info("Extra logging:" +
-            "taskID:" + taskId.toString +","
-            + (taskFinish - taskStart).toString)
 
           m.setJvmGCTime(computeTotalGcTime() - startGCTime)
           m.setResultSerializationTime(afterSerialization - beforeSerialization)

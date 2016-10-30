@@ -31,6 +31,8 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
     preservesPartitioning: Boolean = false)
   extends RDD[U](prev) {
 
+  name = "MapPartitionedRDD"
+
   /**
    * first parent means the most recent parent.
    */
