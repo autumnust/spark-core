@@ -25,6 +25,7 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle._
 import org.apache.spark.storage.DiskBlockObjectWriter
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 
 private[spark] class HashShuffleWriter[K, V](
     shuffleBlockResolver: FileShuffleBlockResolver,
@@ -52,6 +53,13 @@ private[spark] class HashShuffleWriter[K, V](
 
   /** Write a bunch of records to this task's output */
   override def write(records: Iterator[Product2[K, V]]): Unit = {
+    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+    extra_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+    extra_log.info( "[ShuffleMapTask.Write]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
     val iter = if (dep.aggregator.isDefined) {
       if (dep.mapSideCombine) {
         dep.aggregator.get.combineValuesByKey(records, context)
@@ -67,6 +75,10 @@ private[spark] class HashShuffleWriter[K, V](
       val bucketId = dep.partitioner.getPartition(elem._1)
       shuffle.writers(bucketId).write(elem._1, elem._2)
     }
+
+    extra_log.info( "[ShuffleMapTask.Write.Sort]EndAt:"
+      + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
   }
 
   /** Close this writer, passing along whether the map completed */

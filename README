@@ -1,3 +1,9 @@
 Several other things to modify: 
 - in `Python.scala` of SQL mode, modify the `compute()` 
 - put the /conf in the correct position
+
+
+
+##### MISC 
+
+- ex.py is archiving for parsing usage. 

@@ -80,9 +80,9 @@ private[spark] class ShuffleMapTask(
     try {
       val manager = SparkEnv.get.shuffleManager
       writer = manager.getWriter[Any, Any](dep.shuffleHandle, partitionId, context)
+
       writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       val funcRet = writer.stop(success = true).get
-
       // Assume that there's no error/task failure happen in the experiment.
       extra_log.info("[ShuffleMapTask]EndAt:" + System.currentTimeMillis().toString + ","
         + basicLogComponent )

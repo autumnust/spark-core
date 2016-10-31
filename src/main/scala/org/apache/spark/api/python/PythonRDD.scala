@@ -73,7 +73,8 @@ private[spark] class PythonRDD(
       ",TaskAttempt ID:" + context.taskAttemptId().toString() +
       ",Partition Id:" + context.partitionId().toString +
       ",Stage Id:" + context.stageId().toString
-    serialize_log.info("[CreationPYRE]StartAt:" + System.currentTimeMillis().toString + ","
+    serialize_log.info("[CreationPYRE]StartAt:"
+      + System.currentTimeMillis().toString + ","
       + basicLogComponent)
 
     val runner = new PythonRunner(
@@ -82,9 +83,8 @@ private[spark] class PythonRDD(
     serialize_log.info("[CreationPYRE]EndAt:" + System.currentTimeMillis().toString + ","
       + basicLogComponent)
 
-
-
-    serialize_log.info("[RunnerCompute]StartAt:" + System.currentTimeMillis().toString + ","
+    serialize_log.info("[RunnerCompute]StartAt:"
+      + System.currentTimeMillis().toString + ","
       + basicLogComponent)
     val funcRet = runner.compute(firstParent.iterator(split, context),
       split.index, context, basicLogComponent)
@@ -265,6 +265,10 @@ private[spark] class PythonRunner(
 
     /** Terminates the writer thread, ignoring any exceptions that may occur due to cleanup. */
     def shutdownOnTaskCompletion() {
+      /*
+      * Actually this logging can only support that the
+      * data transmission between py and jvm are pipelined
+      * */
       serialize_log.info("[writerThread]EndAt:" + System.currentTimeMillis().toString + ","
         + loggingScheme)
       assert(context.isCompleted)
@@ -377,20 +381,10 @@ private class PairwiseRDD(prev: RDD[Array[Byte]]) extends RDD[(Long, Array[Byte]
   override def getPartitions: Array[Partition] = prev.partitions
   override val partitioner: Option[Partitioner] = prev.partitioner
   override def compute(split: Partition, context: TaskContext): Iterator[(Long, Array[Byte])] = {
-
-    val serialize_log = org.apache.log4j.LogManager.getLogger("serializeLogger")
-    serialize_log.setLevel(Level.INFO)
-    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
-      ",Partition Id:" + context.partitionId().toString +
-      ",Stage Id:" + context.stageId().toString
-    serialize_log.info("[PairWiseCompute]StartAt:" + System.currentTimeMillis().toString + ","
-      + basicLogComponent)
     val funcRet = prev.iterator(split, context).grouped(2).map {
       case Seq(a, b) => (Utils.deserializeLongValue(a), b)
       case x => throw new SparkException("PairwiseRDD: unexpected value: " + x)
     }
-    serialize_log.info("[PairWiseCompute]StartAt:" + System.currentTimeMillis().toString + ","
-      + basicLogComponent)
     funcRet
   }
   val asJavaPairRDD : JavaPairRDD[Long, Array[Byte]] = JavaPairRDD.fromRDD(this)

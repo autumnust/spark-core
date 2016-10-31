@@ -40,14 +40,6 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
       context: TaskContext,
       storageLevel: StorageLevel): Iterator[T] = {
 
-    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
-    extra_log.setLevel(Level.INFO)
-    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
-      ",Partition Id:" + context.partitionId().toString +
-      ",Stage Id:" + context.stageId().toString
-    extra_log.info("[Coarsed-getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
-      + basicLogComponent)
-
     val key = RDDBlockId(rdd.id, partition.index)
     logDebug(s"Looking for partition $key")
     blockManager.get(key) match {
@@ -76,11 +68,7 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
         try {
           logInfo(s"Partition $key not found, computing it")
 
-          extra_log.info("[Fined-getOrCompute]StartAt:" + System.currentTimeMillis().toString + ","
-            + basicLogComponent)
           val computedValues = rdd.computeOrReadCheckpoint(partition, context)
-          extra_log.info("[Fined-getOrCompute]EndAt:" + System.currentTimeMillis().toString + ","
-            + basicLogComponent)
 
 
           // If the task is running locally, do not persist the result
@@ -95,9 +83,6 @@ private[spark] class CacheManager(blockManager: BlockManager) extends Logging {
           val lastUpdatedBlocks = metrics.updatedBlocks.getOrElse(Seq[(BlockId, BlockStatus)]())
           metrics.updatedBlocks = Some(lastUpdatedBlocks ++ updatedBlocks.toSeq)
           val funcRet = new InterruptibleIterator(context, cachedValues)
-          extra_log.info("[Coarsed-getOrCompute]EndAt:"
-            + System.currentTimeMillis().toString + ","
-            + basicLogComponent)
           funcRet
         } finally {
           loading.synchronized {

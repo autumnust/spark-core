@@ -24,6 +24,7 @@ import org.apache.spark.shuffle.{BaseShuffleHandle, IndexShuffleBlockResolver, S
 import org.apache.spark.storage.ShuffleBlockId
 import org.apache.spark.util.Utils
 import org.apache.spark.util.collection.ExternalSorter
+import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 
 private[spark] class SortShuffleWriter[K, V, C](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -50,6 +51,18 @@ private[spark] class SortShuffleWriter[K, V, C](
 
   /** Write a bunch of records to this task's output */
   override def write(records: Iterator[Product2[K, V]]): Unit = {
+
+    val extra_log = org.apache.log4j.LogManager.getLogger("extraLogger")
+    extra_log.setLevel(Level.INFO)
+    val basicLogComponent = "TaskAttempt ID:" + context.taskAttemptId().toString() +
+      ",Partition Id:" + context.partitionId().toString +
+      ",Stage Id:" + context.stageId().toString
+    extra_log.info("[ShuffleMapTask.Write]StartAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
+    extra_log.info( "[ShuffleMapTask.Write.Sort]StartAt:"
+      + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
+
     sorter = if (dep.mapSideCombine) {
       require(dep.aggregator.isDefined, "Map-side combine without Aggregator specified!")
       new ExternalSorter[K, V, C](
@@ -62,6 +75,12 @@ private[spark] class SortShuffleWriter[K, V, C](
         context, aggregator = None, Some(dep.partitioner), ordering = None, dep.serializer)
     }
     sorter.insertAll(records)
+    extra_log.info( "[ShuffleMapTask.Write.Sort]EndAt:"
+      + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
+    extra_log.info( "[ShuffleMapTask.Write.Persist]StartAt:"
+      + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
 
     // Don't bother including the time to open the merged output file in the shuffle write time,
     // because it just opens a single file, so is typically too fast to measure accurately
@@ -72,6 +91,12 @@ private[spark] class SortShuffleWriter[K, V, C](
     val partitionLengths = sorter.writePartitionedFile(blockId, tmp)
     shuffleBlockResolver.writeIndexFileAndCommit(dep.shuffleId, mapId, partitionLengths, tmp)
     mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths)
+
+    extra_log.info( "[ShuffleMapTask.Write.Persist]EndAt:"
+      + System.currentTimeMillis().toString + ","
+      + basicLogComponent )
+    extra_log.info("[ShuffleMapTask.Write]EndAt:" + System.currentTimeMillis().toString + ","
+      + basicLogComponent)
   }
 
   /** Close this writer, passing along whether the map completed */
