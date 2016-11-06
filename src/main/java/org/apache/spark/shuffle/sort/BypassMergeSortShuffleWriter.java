@@ -47,6 +47,7 @@ import org.apache.spark.shuffle.IndexShuffleBlockResolver;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.storage.*;
 import org.apache.spark.util.Utils;
+import org.apache.log4j.* ;
 
 /**
  * This class implements sort-based shuffle's hash-style shuffle fallback path. This write path
@@ -86,6 +87,8 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
   private final Serializer serializer;
   private final IndexShuffleBlockResolver shuffleBlockResolver;
 
+  private final TaskContext taskContext ;
+
   /** Array of file writers, one for each partition */
   private DiskBlockObjectWriter[] partitionWriters;
   @Nullable private MapStatus mapStatus;
@@ -118,11 +121,21 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     taskContext.taskMetrics().shuffleWriteMetrics_$eq(Option.apply(writeMetrics));
     this.serializer = Serializer.getSerializer(dep.serializer());
     this.shuffleBlockResolver = shuffleBlockResolver;
+    this.taskContext = taskContext;
   }
 
   @Override
   public void write(Iterator<Product2<K, V>> records) throws IOException {
     assert (partitionWriters == null);
+
+    org.apache.log4j.Logger extra_log = org.apache.log4j.LogManager.getLogger("extraLogger");
+    extra_log.setLevel(Level.INFO) ;
+    String basicLogComponent = "TaskAttempt ID:" + this.taskContext.taskAttemptId() +
+            ",Partition Id:" + this.taskContext.partitionId() +
+            ",Stage Id:" + this.taskContext.stageId() ;
+    extra_log.info( "[BypassMergeSortShuffleWriter][ShuffleMapTask.Write]StartAt:" +
+            System.currentTimeMillis() + "," + basicLogComponent );
+
     if (!records.hasNext()) {
       partitionLengths = new long[numPartitions];
       shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, null);
@@ -160,6 +173,10 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     partitionLengths = writePartitionedFile(tmp);
     shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, tmp);
     mapStatus = MapStatus$.MODULE$.apply(blockManager.shuffleServerId(), partitionLengths);
+
+
+    extra_log.info( "[BypassMergeSortShuffleWriter][ShuffleMapTask.Write]EndAt:" +
+            System.currentTimeMillis() + "," + basicLogComponent );
   }
 
   @VisibleForTesting

@@ -54,6 +54,7 @@ import org.apache.spark.storage.BlockManager;
 import org.apache.spark.storage.TimeTrackingOutputStream;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.util.Utils;
+import org.apache.log4j.*;
 
 @Private
 public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
@@ -155,6 +156,15 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+
+      org.apache.log4j.Logger extra_log = org.apache.log4j.LogManager.getLogger("extraLogger");
+      extra_log.setLevel(Level.INFO) ;
+      String basicLogComponent = "TaskAttempt ID:" + this.taskContext.taskAttemptId() +
+              ",Partition Id:" + this.taskContext.partitionId() +
+              ",Stage Id:" + this.taskContext.stageId() ;
+      extra_log.info( "[UnsafeShuffleWriter][ShuffleMapTask.Write]StartAt:" +
+              System.currentTimeMillis() + "," + basicLogComponent );
+
     // Keep track of success so we know if we encountered an exception
     // We do this rather than a standard try/catch/re-throw to handle
     // generic throwables.
@@ -181,6 +191,9 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
         }
       }
     }
+    extra_log.info( "[UnsafeShuffleWriter][ShuffleMapTask.Write]EndAt:" + System.currentTimeMillis() + ","
+          + basicLogComponent );
+
   }
 
   private void open() throws IOException {
