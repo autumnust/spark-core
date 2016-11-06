@@ -145,6 +145,8 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     final SerializerInstance serInstance = serializer.newInstance();
     final long openStartTime = System.nanoTime();
     partitionWriters = new DiskBlockObjectWriter[numPartitions];
+
+    // Lei: Allocate the file to write to
     for (int i = 0; i < numPartitions; i++) {
       final Tuple2<TempShuffleBlockId, File> tempShuffleBlockIdPlusFile =
         blockManager.diskBlockManager().createTempShuffleBlock();
@@ -157,6 +159,9 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     // the disk, and can take a long time in aggregate when we open many files, so should be
     // included in the shuffle write time.
     writeMetrics.incShuffleWriteTime(System.nanoTime() - openStartTime);
+
+    extra_log.info( "[BypassMergeSortShuffleWriter][ShuffleMapTask.Write]Finished File creation:" +
+            System.currentTimeMillis() + "," + basicLogComponent );
 
     while (records.hasNext()) {
       final Product2<K, V> record = records.next();
@@ -173,7 +178,6 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     partitionLengths = writePartitionedFile(tmp);
     shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, tmp);
     mapStatus = MapStatus$.MODULE$.apply(blockManager.shuffleServerId(), partitionLengths);
-
 
     extra_log.info( "[BypassMergeSortShuffleWriter][ShuffleMapTask.Write]EndAt:" +
             System.currentTimeMillis() + "," + basicLogComponent );
