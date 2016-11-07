@@ -1,6 +1,7 @@
 Several other things to modify from scratch Spark-1.6.1 downloaded from official website: 
 (checked on Cluster)- in `Python.scala` of SQL module, modify the `compute()` 
 - put the /conf in the correct position
+- put the usage_pom.xml inside the spark/ main folder and replace the pom.xml there 
 - copy the src directly into the target folder and replace the original one.
 
 

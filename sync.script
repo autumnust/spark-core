@@ -1,2 +1,3 @@
 cp -r ../../spark-1.6.1/core/src ./
 cp -r ../../spark-1.6.1/conf ./
+cp -r ../../spark-1.6.1/pom.xml ./usage_pom.xml
