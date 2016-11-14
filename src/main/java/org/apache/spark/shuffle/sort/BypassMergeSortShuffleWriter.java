@@ -130,7 +130,8 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
 
     org.apache.log4j.Logger extra_log = org.apache.log4j.LogManager.getLogger("extraLogger");
     extra_log.setLevel(Level.INFO) ;
-    String basicLogComponent = "TaskAttempt ID:" + this.taskContext.taskAttemptId() +
+    String basicLogComponent = "Shuffle ID:" + this.shuffleId +
+            ",TaskAttempt ID:" + this.taskContext.taskAttemptId() +
             ",Partition Id:" + this.taskContext.partitionId() +
             ",Stage Id:" + this.taskContext.stageId() ;
     extra_log.info( "[BypassMergeSortShuffleWriter]StartAt:" +
@@ -144,8 +145,6 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     }
     final SerializerInstance serInstance = serializer.newInstance();
     final long openStartTime = System.nanoTime();
-    extra_log.info( "[BypassMergeSortShuffleWriter:AllocateFile]StartAt:" +
-            System.currentTimeMillis() + "," + basicLogComponent );
     partitionWriters = new DiskBlockObjectWriter[numPartitions];
 
     // Lei: Allocate the file to write to
@@ -162,8 +161,6 @@ final class BypassMergeSortShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     // included in the shuffle write time.
     writeMetrics.incShuffleWriteTime(System.nanoTime() - openStartTime);
 
-    extra_log.info( "[BypassMergeSortShuffleWriter:AllocateFile]EndAt:" +
-            System.currentTimeMillis() + "," + basicLogComponent );
 
     while (records.hasNext()) {
       final Product2<K, V> record = records.next();
